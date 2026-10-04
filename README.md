@@ -1,7 +1,7 @@
 # Game Room
 
 Multiplayer mini games for Telegram (groups, DMs, invite links). No database: rooms live in memory.
-Games: Tic-Tac-Toe, Connect 4 (vs bot or people) and score-attack games Snake, Fighter Jet, Tetris, 2048, Flappy (solo best score, or a score battle where the higher score wins). Each has solo mode vs bot (Easy / Medium / Hard), Quick match, and Invite a friend.
+Games: Tic-Tac-Toe, Connect 4, Chess (vs bot or people); score-attack Snake, Fighter Jet, Tetris, 2048, Flappy, Breakout, Dodge, Whack-a-Mole, Stack (solo best score, or a group room where everyone who taps Join plays and the highest score wins).
 
 ## Deploy (free)
 1. Upload these files to your GitHub repo.
@@ -16,3 +16,6 @@ Commands: `/play` (random game), `/play chess`-style with a game id, `/games`, `
 Add its id to `GAMES` in `server.js`, and a plug-in object (init, moves, move, result, tap, cell) in `public/index.html`.
 
 Score-attack games live in public/arcade.js (one small plug-in each); add the id to GAMES in server.js too.
+
+Chess rules live in public/chess.js (tested with standard perft positions; promotion is always to a queen).
+Controls are touch-first: drag, swipe or tap on the game itself; keyboard also works on desktop.
