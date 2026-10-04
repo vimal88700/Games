@@ -13,6 +13,8 @@ const rooms = new Map(), waiting = {};   // everything lives in memory, nothing 
 
 app.use(express.json());
 app.use(express.static('public'));
+// The mini app URL in BotFather may end in /app (older setup), so serve the game there too
+app.get(['/app', '/app/*'], (_, r) => r.sendFile(require('path').join(__dirname, 'public', 'index.html')));
 app.get('/health', (_, r) => r.send('ok'));
 app.get('/config', (_, r) => r.json({ bot: BOT_USER, app: APP }));
 
