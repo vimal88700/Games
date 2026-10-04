@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Game Room</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#12303a;--card:#1b4653;--ink:#f4efe2;--dim:#9cb8bd;--gold:#f2c230;--p0:#ff6b8b;--p1:#62d2ff}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 ui-rounded,Nunito,system-ui,sans-serif;min-height:100vh;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+h1{font-size:28px;margin:6px 0 12px}h2{font-size:18px;margin:18px 0 8px}.dim{color:var(--dim)}
+button{font:inherit;color:inherit;border:0;border-radius:14px;padding:13px 16px;background:var(--card);cursor:pointer}
+button:focus-visible{outline:3px solid var(--gold)}
+.gold{background:var(--gold);color:#24200a;font-weight:700}.wide{width:100%}.ghost{background:none;padding:6px 0;color:var(--dim)}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
+.tile{text-align:left;padding:16px}.tile span{display:block;font-size:30px;margin-bottom:6px}.tile b{font-size:18px}
+.stack{display:grid;gap:10px}.row{display:flex;gap:8px}.row button{flex:1}
+.board{display:grid;gap:6px;margin:16px auto;max-width:420px;padding:10px;border-radius:18px;background:#0b222a}
+.cell{aspect-ratio:1;padding:0;border-radius:12px;font-size:44px;font-weight:800;display:grid;place-items:center}
+.tictactoe .p0{color:var(--p0)}.tictactoe .p1{color:var(--p1)}
+.connect4 .cell{border-radius:50%}.connect4 .p0{background:var(--p0)}.connect4 .p1{background:var(--p1)}
+#pad button{touch-action:none;user-select:none;font-size:20px}#status{font-size:18px;min-height:27px}
+</style></head><body>
+<section id="lobby"><h1>Game Room</h1><p class="dim">Pick a game, or let luck pick one.</p>
+<button id="rand" class="gold wide">🎲 Surprise me</button><div class="grid" id="tiles"></div></section>
+
+<section id="mode" hidden><button id="back1" class="ghost">‹ All games</button><h1 id="pname"></h1>
+<div id="botbox"><h2>Play the bot</h2><div class="row" id="bots"><button data-l="0">Easy</button><button data-l="1">Medium</button><button data-l="2">Hard</button></div></div>
+<div id="solobox" hidden><h2>Play alone</h2><button id="solo" class="gold wide">🕹 Start and beat your best</button></div>
+<h2 id="hp">Play people</h2><div class="stack"><button id="quick" class="gold">⚡ Quick match</button><button id="inv">👥 Invite a friend</button></div>
+<p id="qs" class="dim"></p></section>
+
+<section id="play" hidden><button id="back2" class="ghost">‹ Leave game</button><h1 id="gname"></h1>
+<p id="status"></p><div id="board" class="board"></div>
+<div class="row"><button id="again" class="gold" hidden>Play again</button><button id="share" hidden>Invite a friend</button></div></section>
+
+<section id="arc" hidden><button id="back3" class="ghost">‹ Leave game</button><h1 id="aname"></h1><p id="astat"></p>
+<canvas id="cv" width="320" height="480" style="width:100%;max-width:320px;display:block;margin:0 auto;border-radius:14px;touch-action:none"></canvas>
+<div id="pad" class="row" style="margin-top:10px"><button data-k="l">◀</button><button data-k="u">▲</button><button data-k="d">▼</button><button data-k="r">▶</button><button data-k="a">A</button></div>
+<div class="row" style="margin-top:10px"><button id="aagain" class="gold" hidden>Play again</button><button id="ashare" hidden>Invite a friend</button></div></section>
+
+<script src="/arcade.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const tg=window.Telegram&&Telegram.WebApp; if(tg){tg.ready();tg.expand();}
+const $=s=>document.querySelector(s), socket=io();
+let cfg={};fetch('/config').then(r=>r.json()).then(c=>cfg=c).catch(()=>{});
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+/* ---- game plug-ins: init, moves, move, result, tap (cell->move), cell (mark) ---- */
+const G={
+ tictactoe:{name:'Tic-Tac-Toe',icon:'✕ ○',cols:3,rows:3,depth:[0,2,9],
+  init:()=>({b:Array(9).fill(null),t:0}),
+  moves:s=>s.b.map((v,i)=>v===null?i:-1).filter(i=>i>=0),
+  move(s,p,i){if(s.t!==p||s.b[i]!==null)return null;const b=[...s.b];b[i]=p;return{b,t:1-p}},
+  result(s){for(const[a,b,c]of LINES)if(s.b[a]!==null&&s.b[a]===s.b[b]&&s.b[a]===s.b[c])return{w:s.b[a]};return s.b.every(v=>v!==null)?{draw:1}:null},
+  tap:i=>i,cell:v=>v===null?'':v===0?'✕':'○'},
+ connect4:{name:'Connect 4',icon:'🔴 🔵',cols:7,rows:6,depth:[0,2,5],
+  init:()=>({b:Array(42).fill(null),t:0}),
+  moves:s=>[3,2,4,1,5,0,6].filter(c=>s.b[c]===null),
+  move(s,p,c){if(s.t!==p||s.b[c]!==null)return null;const b=[...s.b];let r=5;while(b[r*7+c]!==null)r--;b[r*7+c]=p;return{b,t:1-p}},
+  result(s){const b=s.b;for(let r=0;r<6;r++)for(let c=0;c<7;c++){const v=b[r*7+c];if(v===null)continue;
+   for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){let k=1;while(k<4){const y=r+dr*k,x=c+dc*k;if(y<0||y>5||x<0||x>6||b[y*7+x]!==v)break;k++}if(k===4)return{w:v}}}
+   return b.slice(0,7).every(v=>v!==null)?{draw:1}:null},
+  tap:i=>i%7,cell:()=>''}
+};
+
+/* ---- bot: alpha-beta search; level 0 = random, 1 = shallow, 2 = deep ---- */
+function ab(g,s,me,d,al,be){const r=g.result(s);if(r)return r.w===me?100+d:r.w===undefined?0:-100-d;if(!d)return 0;
+ const max=s.t===me;let v=max?-1e9:1e9;
+ for(const m of g.moves(s)){const x=ab(g,g.move(s,s.t,m),me,d-1,al,be);
+  if(max){v=Math.max(v,x);al=Math.max(al,v)}else{v=Math.min(v,x);be=Math.min(be,v)}if(al>=be)break}
+ return v}
+function botPick(g,s,me,lvl){const mv=g.moves(s);if(!lvl)return mv[Math.random()*mv.length|0];
+ let best=-1e9,pick=[];for(const m of mv){const x=ab(g,g.move(s,me,m),me,g.depth[lvl]-1,-1e9,1e9);
+  if(x>best){best=x;pick=[m]}else if(x===best)pick.push(m)}
+ return pick[Math.random()*pick.length|0]}
+
+/* ---- app flow ---- */
+let g,s,gid,me=0,mode=null,lvl=1,room,players=1,over=false,res=null,gen=0,inviting=false;
+const show=id=>document.querySelectorAll('section').forEach(e=>e.hidden=e.id!==id);
+const ALL={...G,...ARC},ids=Object.keys(ALL);
+$('#tiles').innerHTML=ids.map(k=>`<button class="tile" data-g="${k}"><span>${ALL[k].icon}</span><b>${ALL[k].name}</b></button>`).join('');
+$('#tiles').onclick=e=>{const b=e.target.closest('[data-g]');b&&pick(b.dataset.g)};
+$('#rand').onclick=()=>pick(ids[Math.random()*ids.length|0]);
+function pick(k){gid=k;const a=!!ARC[k];$('#pname').textContent=ALL[k].name;$('#qs').textContent='';$('#botbox').hidden=a;$('#solobox').hidden=!a;$('#hp').textContent=a?'Score battle: highest score wins':'Play people';show('mode')}
+$('#back1').onclick=()=>{socket.emit('leave');show('lobby')};
+$('#back2').onclick=()=>{gen++;mode=null;socket.emit('leave');show('lobby')};
+$('#bots').onclick=e=>{const b=e.target.closest('[data-l]');if(b){mode='bot';lvl=+b.dataset.l;me=0;start(gid)}};
+$('#quick').onclick=()=>{$('#qs').textContent='Looking for a player…';socket.emit('quick',{game:gid},r=>r.room&&join(r.room,gid))};
+$('#inv').onclick=()=>{inviting=true;join(Math.random().toString(36).slice(2,8),gid)};
+socket.on('matched',({room:r,game})=>join(r,game));
+function join(r,k){socket.emit('join',{room:r,game:k},x=>{
+ if(x.error){alert(x.error);return}
+ mode='online';me=x.seat;room=r;players=x.count;ARC[x.game]?arc(x.game,r,x.count):start(x.game);
+ if(inviting){inviting=false;share()}})}
+function link(){return cfg.bot?`https://t.me/${cfg.bot}${cfg.app?'/'+cfg.app:''}?startapp=${gid}-${room}`:`${location.origin}/?g=${gid}&r=${room}`}
+function share(){const u='https://t.me/share/url?url='+encodeURIComponent(link())+'&text='+encodeURIComponent('Play '+ALL[gid].name+' with me!');tg?tg.openTelegramLink(u):window.open(u)}
+$('#share').onclick=share;$('#ashare').onclick=share;
+/* ---- score-attack runner ---- */
+let A={};const inp={h:{},p:{}},cv=$('#cv'),cx=cv.getContext('2d');
+const key=(k,v)=>{inp.h[k]=v;if(v)inp.p[k]=1};
+const KM={ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d',' ':'a'};
+addEventListener('keydown',e=>{const m=KM[e.key];if(m){key(m,1);e.preventDefault()}});
+addEventListener('keyup',e=>{const m=KM[e.key];if(m)key(m,0)});
+$('#pad').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-k]');if(b)key(b.dataset.k,1)});
+addEventListener('pointerup',()=>'ludrA'.split('').forEach(k=>key(k==='A'?'a':k,0)));
+let sx,sy;cv.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});
+cv.addEventListener('pointerup',e=>{const dx=e.clientX-sx,dy=e.clientY-sy;
+ if(Math.abs(dx)<15&&Math.abs(dy)<15)inp.p.a=1;else inp.p[Math.abs(dx)>Math.abs(dy)?(dx>0?'r':'l'):(dy>0?'d':'u')]=1});
+function arc(k,r,count){gen++;gid=k;A={k,d:ARC[k],online:!!r,opp:null,round:0,wait:false,live:false};$('#aname').textContent=A.d.name;
+ $('#aagain').hidden=true;show('arc');
+ if(r&&count<2){A.wait=true;$('#astat').textContent='Waiting for a friend to join…';$('#ashare').hidden=false;cx.clearRect(0,0,320,480)}else beginArc()}
+function beginArc(){const my=++gen;A.opp=null;A.mine=null;A.live=true;$('#aagain').hidden=true;$('#ashare').hidden=true;
+ const seed=A.online?[...room].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7)+A.round:Date.now();
+ const st=A.st=A.d.init(rng(seed));let last=performance.now();inp.p={};
+ (function loop(t){if(my!==gen||!A.live)return;const dt=Math.min(40,t-last);last=t;A.d.step(st,inp,dt);inp.p={};A.d.draw(cx,st);
+  $('#astat').textContent='Score '+st.sc;if(st.dead){endArc();return}requestAnimationFrame(loop)})(last)}
+function endArc(){A.live=false;A.mine=A.st.sc;if(A.online)socket.emit('move',{done:1,score:A.mine});
+ let best=A.mine;try{best=Math.max(A.mine,+localStorage.getItem('best_'+A.k)||0);localStorage.setItem('best_'+A.k,best)}catch(e){}A.best=best;arcResult()}
+function arcResult(){if(A.mine==null)return;let t;
+ if(!A.online)t=`Game over: ${A.mine}. Your best: ${A.best}`;
+ else if(A.opp==null)t=`You scored ${A.mine}. Waiting for your opponent to finish…`;
+ else t=`You ${A.mine} vs Opponent ${A.opp}. `+(A.mine>A.opp?'You win! 🎉':A.mine<A.opp?'Opponent wins.':'Tie.');
+ $('#astat').textContent=t;$('#aagain').hidden=A.online&&A.opp==null;$('#aagain').textContent=A.online?'Rematch':'Play again'}
+$('#aagain').onclick=()=>{if(A.online){A.round++;socket.emit('move',{reset:1})}beginArc()};
+$('#solo').onclick=()=>{mode='solo';arc(gid)};
+$('#back3').onclick=()=>{gen++;A.live=false;mode=null;socket.emit('leave');show('lobby')};
+function start(k){gen++;gid=k;g=G[k];s=g.init();over=false;res=null;$('#gname').textContent=g.name;
+ const B=$('#board');B.className='board '+k;B.style.gridTemplateColumns=`repeat(${g.cols},1fr)`;B.innerHTML='';
+ for(let i=0;i<g.cols*g.rows;i++){const c=document.createElement('button');c.className='cell';c.dataset.i=i;B.append(c)}
+ show('play');update()}
+$('#board').onclick=e=>{const c=e.target.closest('.cell');if(c)play(g.tap(+c.dataset.i),me,true)};
+function play(m,p,local){if(over||!g)return;if(mode==='online'&&local&&players<2)return;
+ const n=g.move(s,p,m);if(!n)return;s=n;if(local&&mode==='online')socket.emit('move',{m,p});
+ res=g.result(s);if(res)over=true;update();
+ if(!over&&mode==='bot'&&s.t===1){const my=gen;setTimeout(()=>my===gen&&play(botPick(g,s,1,lvl),1,false),550)}}
+function update(){[...$('#board').children].forEach((c,i)=>{const v=s.b[i];c.className='cell'+(v===null?'':' p'+v);c.textContent=g.cell(v)});
+ const tag=g.cell(0)?g.cell(me):(me?'blue':'red'),foe=mode==='bot'?'Bot':'Opponent';let t;
+ if(over)t=res.draw?'Draw.':res.w===me?'You win! 🎉':foe+' wins.';
+ else if(mode==='online'&&players<2)t='Waiting for a friend to join…';
+ else t=s.t===me?'Your turn':foe+(mode==='bot'?' is thinking…':'’s turn');
+ $('#status').textContent=`You: ${tag}. ${t}`;
+ $('#again').hidden=!over;$('#share').hidden=!(mode==='online'&&players<2)}
+function restart(){start(gid)}
+$('#again').onclick=()=>{restart();if(mode==='online')socket.emit('move',{reset:1})};
+socket.on('move',m=>{if(ARC[gid]){if(m.done){A.opp=m.score;arcResult()}else if(m.reset){A.round++;beginArc()}return}m.reset?restart():play(m.m,m.p,false)});
+socket.on('players',n=>{if(mode!=='online')return;const left=n<players;players=n;if(ARC[gid]){if(A.wait&&n>=2){A.wait=false;beginArc()}return}if(left)restart();else update()});
+
+const q=new URLSearchParams(location.search),sp=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
+if(q.get('g')&&q.get('r')&&G[q.get('g')])join(q.get('r'),q.get('g'));
+else if(sp&&sp.includes('-')){const[k,r]=sp.split('-');if(G[k])join(r,k)}
+</script></body></html>
