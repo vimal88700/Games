@@ -8,8 +8,10 @@ const BOT_USER = process.env.BOT_USERNAME, APP = process.env.APP_NAME;
 const BASE = process.env.WEBAPP_URL || process.env.RENDER_EXTERNAL_URL || '';
 // To add a game: add its id here AND a plug-in (public/index.html for turn-based, public/arcade.js for score games)
 const GAMES = { tictactoe: 'Tic-Tac-Toe', connect4: 'Connect 4', chess: 'Chess', snake: 'Snake', jet: 'Fighter Jet', tetris: 'Tetris',
-  g2048: '2048', flappy: 'Flappy', breakout: 'Breakout', dodge: 'Dodge', whack: 'Whack-a-Mole', stack: 'Stack' };
-const SCORE_GAMES = new Set(['snake', 'jet', 'tetris', 'g2048', 'flappy', 'breakout', 'dodge', 'whack', 'stack']); // any number of players
+  g2048: '2048', flappy: 'Flappy', breakout: 'Breakout', dodge: 'Dodge', whack: 'Whack-a-Mole', stack: 'Stack',
+  ludo: 'Ludo', catch: 'Fruit Catch', runner: 'Runner', bubble: 'Bubble Pop', pong: 'Pong Rally', taprush: 'Number Rush', simon: 'Simon', memory: 'Memory' };
+const SCORE_GAMES = new Set(['snake', 'jet', 'tetris', 'g2048', 'flappy', 'breakout', 'dodge', 'whack', 'stack',
+  'catch', 'runner', 'bubble', 'pong', 'taprush', 'simon', 'memory']); // any number of players
 const MAX_SCORE_PLAYERS = 60;
 const rid = () => Math.random().toString(36).slice(2, 8);
 const rooms = new Map(), waiting = {};   // everything lives in memory, nothing is stored
