@@ -1,60 +1,87 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Game Room</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{--bg:#12303a;--card:#1b4653;--ink:#f4efe2;--dim:#9cb8bd;--gold:#f2c230;--p0:#ff6b8b;--p1:#62d2ff}
-*{box-sizing:border-box}[hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 ui-rounded,Nunito,system-ui,sans-serif;min-height:100vh;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+body[data-t=tictactoe]{--bg:#1d2b26;--card:#2a4237}
+body[data-t=connect4]{--bg:#10286b;--card:#0a1a4a}
+body[data-t=chess]{--bg:#2b1d12;--card:#4a3322}
+body[data-t=snake]{--bg:#0f2a17;--card:#1d4a2a}
+body[data-t=jet]{--bg:#0a1230;--card:#1a2670}
+body[data-t=tetris]{--bg:#1b0f33;--card:#3a2270}
+body[data-t=g2048]{--bg:#efe4d0;--card:#d9c8ad;--ink:#4a3a27;--dim:#8a7757}
+body[data-t=flappy]{--bg:#5fd0f4;--card:#2f8fb5;--ink:#0d3342;--dim:#1f6b8a}
+body[data-t=breakout]{--bg:#1a0b2e;--card:#3a1a6e}
+body[data-t=dodge]{--bg:#2a0f0a;--card:#6b2412}
+body[data-t=whack]{--bg:#2b4a1f;--card:#3f7a2c}
+body[data-t=stack]{--bg:#1d2750;--card:#34479a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 ui-rounded,Nunito,system-ui,sans-serif;min-height:100vh;padding:16px 16px calc(16px + env(safe-area-inset-bottom));transition:background .3s;user-select:none;-webkit-user-select:none}
 h1{font-size:28px;margin:6px 0 12px}h2{font-size:18px;margin:18px 0 8px}.dim{color:var(--dim)}
-button{font:inherit;color:inherit;border:0;border-radius:14px;padding:13px 16px;background:var(--card);cursor:pointer}
+button{font:inherit;color:inherit;border:0;border-radius:14px;padding:13px 16px;background:var(--card);cursor:pointer;touch-action:manipulation}
 button:focus-visible{outline:3px solid var(--gold)}
 .gold{background:var(--gold);color:#24200a;font-weight:700}.wide{width:100%}.ghost{background:none;padding:6px 0;color:var(--dim)}
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0}
-.tile{text-align:left;padding:16px}.tile span{display:block;font-size:30px;margin-bottom:6px}.tile b{font-size:18px}
+.tile{text-align:left;padding:16px;color:#fff}.tile span{display:block;font-size:30px;margin-bottom:6px}.tile b{font-size:17px}
 .stack{display:grid;gap:10px}.row{display:flex;gap:8px}.row button{flex:1}
 .board{display:grid;gap:6px;margin:16px auto;max-width:420px;padding:10px;border-radius:18px;background:#0b222a}
 .cell{aspect-ratio:1;padding:0;border-radius:12px;font-size:44px;font-weight:800;display:grid;place-items:center}
-.tictactoe .p0{color:var(--p0)}.tictactoe .p1{color:var(--p1)}
-.connect4 .cell{border-radius:50%}.connect4 .p0{background:var(--p0)}.connect4 .p1{background:var(--p1)}
-#pad button{touch-action:none;user-select:none;font-size:20px}#status{font-size:18px;min-height:27px}
-</style></head><body>
+.tictactoe.board{background:#14201b}.tictactoe .p0{color:#ffe08a}.tictactoe .p1{color:#9fe3ff}
+.connect4.board{background:#1d44c8}.connect4 .cell{border-radius:50%}.connect4 .p0{background:var(--p0)}.connect4 .p1{background:#ffd23f}
+.chess.board{gap:0;padding:6px;background:#3b2615;border-radius:10px}.chess .cell{border-radius:0;font-size:34px;line-height:1}
+.chess .lt{background:#f0d9b5}.chess .dk{background:#b58863}.chess .pw{color:#fff;text-shadow:0 0 2px #000,0 0 3px #000,0 0 3px #000}.chess .pb{color:#15100c}
+.chess .last{box-shadow:inset 0 0 0 100px rgba(255,214,70,.35)}.chess .sel{box-shadow:inset 0 0 0 4px #f2c230}
+.chess .hint{background-image:radial-gradient(circle,rgba(20,110,60,.65) 20%,transparent 23%)}
+#status{font-size:18px;min-height:27px}
+#arc{display:flex;flex-direction:column;height:calc(var(--tg-viewport-stable-height,100vh) - 32px - env(safe-area-inset-bottom))}
+#atop{display:flex;align-items:center;gap:10px;margin-bottom:8px}#atop span{margin-left:auto;color:var(--dim)}
+#cvw{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cvb{position:relative}#cv{width:100%;height:100%;display:block;border-radius:14px;touch-action:none}
+#over{position:absolute;inset:0;background:rgba(5,15,20,.88);border-radius:14px;padding:18px;display:flex;flex-direction:column;justify-content:center;gap:10px;color:#f4efe2;overflow:auto}
+#over h2{margin:0;font-size:26px}#osc{font-size:18px}.lbr{display:flex;justify-content:space-between;padding:6px 10px;border-radius:10px;background:rgba(255,255,255,.08);margin-bottom:4px}.lbr.me{background:rgba(242,194,48,.28)}
+</style></head><body data-t="lobby">
 <section id="lobby"><h1>Game Room</h1><p class="dim">Pick a game, or let luck pick one.</p>
 <button id="rand" class="gold wide">🎲 Surprise me</button><div class="grid" id="tiles"></div></section>
 
 <section id="mode" hidden><button id="back1" class="ghost">‹ All games</button><h1 id="pname"></h1>
 <div id="botbox"><h2>Play the bot</h2><div class="row" id="bots"><button data-l="0">Easy</button><button data-l="1">Medium</button><button data-l="2">Hard</button></div></div>
 <div id="solobox" hidden><h2>Play alone</h2><button id="solo" class="gold wide">🕹 Start and beat your best</button></div>
-<h2 id="hp">Play people</h2><div class="stack"><button id="quick" class="gold">⚡ Quick match</button><button id="inv">👥 Invite a friend</button></div>
+<h2 id="hp">Play people</h2><div class="stack"><button id="inv">👥 Invite a friend</button><button id="quick" class="gold">⚡ Quick match</button></div>
 <p id="qs" class="dim"></p></section>
 
 <section id="play" hidden><button id="back2" class="ghost">‹ Leave game</button><h1 id="gname"></h1>
 <p id="status"></p><div id="board" class="board"></div>
 <div class="row"><button id="again" class="gold" hidden>Play again</button><button id="share" hidden>Invite a friend</button></div></section>
 
-<section id="arc" hidden><button id="back3" class="ghost">‹ Leave game</button><h1 id="aname"></h1><p id="astat"></p>
-<canvas id="cv" width="320" height="480" style="width:100%;max-width:320px;display:block;margin:0 auto;border-radius:14px;touch-action:none"></canvas>
-<div id="pad" class="row" style="margin-top:10px"><button data-k="l">◀</button><button data-k="u">▲</button><button data-k="d">▼</button><button data-k="r">▶</button><button data-k="a">A</button></div>
-<div class="row" style="margin-top:10px"><button id="aagain" class="gold" hidden>Play again</button><button id="ashare" hidden>Invite a friend</button></div></section>
+<section id="arc" hidden>
+ <div id="atop"><button id="back3" class="ghost">‹ Leave</button><b id="aname"></b><span id="astat"></span></div>
+ <div id="cvw"><div id="cvb"><canvas id="cv"></canvas>
+  <div id="over" hidden><h2 id="ot">Game over</h2><div id="osc"></div><div id="olb"></div>
+   <div class="stack"><button id="aagain" class="gold">Play again</button><button id="ashare">👥 Invite friends</button></div></div></div></div>
+</section>
 
+<script src="/chess.js"></script>
 <script src="/arcade.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const tg=window.Telegram&&Telegram.WebApp; if(tg){tg.ready();tg.expand();}
-const $=s=>document.querySelector(s), socket=io();
+const tg=window.Telegram&&Telegram.WebApp;if(tg){tg.ready();tg.expand();tg.disableVerticalSwipes&&tg.disableVerticalSwipes()}
+const $=s=>document.querySelector(s),socket=io(),theme=k=>document.body.dataset.t=k;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const ME=(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.first_name)||'Player '+Math.random().toString(36).slice(2,5);
 let cfg={};fetch('/config').then(r=>r.json()).then(c=>cfg=c).catch(()=>{});
 const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
-/* ---- game plug-ins: init, moves, move, result, tap (cell->move), cell (mark) ---- */
+/* ---- turn-based games: init, moves, move, result, tap, cell (+ optional cls, tag, heur, flip) ---- */
 const G={
- tictactoe:{name:'Tic-Tac-Toe',icon:'✕ ○',cols:3,rows:3,depth:[0,2,9],
+ tictactoe:{name:'Tic-Tac-Toe',icon:'✕ ○',col:'#2a4237',cols:3,rows:3,depth:[0,2,9],
   init:()=>({b:Array(9).fill(null),t:0}),
   moves:s=>s.b.map((v,i)=>v===null?i:-1).filter(i=>i>=0),
   move(s,p,i){if(s.t!==p||s.b[i]!==null)return null;const b=[...s.b];b[i]=p;return{b,t:1-p}},
   result(s){for(const[a,b,c]of LINES)if(s.b[a]!==null&&s.b[a]===s.b[b]&&s.b[a]===s.b[c])return{w:s.b[a]};return s.b.every(v=>v!==null)?{draw:1}:null},
   tap:i=>i,cell:v=>v===null?'':v===0?'✕':'○'},
- connect4:{name:'Connect 4',icon:'🔴 🔵',cols:7,rows:6,depth:[0,2,5],
+ connect4:{name:'Connect 4',icon:'🔴 🟡',col:'#1d44c8',cols:7,rows:6,depth:[0,2,5],
   init:()=>({b:Array(42).fill(null),t:0}),
   moves:s=>[3,2,4,1,5,0,6].filter(c=>s.b[c]===null),
   move(s,p,c){if(s.t!==p||s.b[c]!==null)return null;const b=[...s.b];let r=5;while(b[r*7+c]!==null)r--;b[r*7+c]=p;return{b,t:1-p}},
@@ -63,9 +90,21 @@ const G={
    return b.slice(0,7).every(v=>v!==null)?{draw:1}:null},
   tap:i=>i%7,cell:()=>''}
 };
+(()=>{let sel=null,hints=new Set();const V={p:1,n:3,b:3,r:5,q:9,k:0},U={k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟\uFE0E'};
+G.chess={name:'Chess',icon:'♞',col:'#6b4423',cols:8,rows:8,flip:1,depth:[0,1,3],
+ init:()=>{sel=null;hints=new Set();return CHESS.start()},
+ moves(s){return CHESS.legal(s).sort((a,b)=>(s.b[b.t]?1:0)-(s.b[a.t]?1:0))},
+ move(s,p,m){if(s.t!==p)return null;const L=CHESS.legal(s).find(x=>x.f===m.f&&x.t===m.t);return L?CHESS.apply(s,L):null},
+ result:s=>CHESS.result(s),
+ heur(s,me){let v=0;for(const x of s.b)if(x){const q=V[x.toLowerCase()];v+=(x===x.toUpperCase())===(me===0)?q:-q}return v},
+ tap(i,s,me){if(sel!==null&&hints.has(i)){const m={f:sel,t:i};sel=null;hints=new Set();return m}
+  const p=s.b[i];if(p&&s.t===me&&(p===p.toUpperCase())===(me===0)){sel=i;hints=new Set(CHESS.legal(s).filter(m=>m.f===i).map(m=>m.t))}else{sel=null;hints=new Set()}return null},
+ cell:v=>v?U[v.toLowerCase()]:'',tag:me=>me?'Black':'White'};
+G.chess.cls=(v,i,s)=>(((i>>3)+(i&7))%2?'dk':'lt')+(v?(v===v.toUpperCase()?' pw':' pb'):'')+(i===sel?' sel':'')+(hints.has(i)?' hint':'')+(s.last&&(s.last[0]===i||s.last[1]===i)?' last':'');
+})();
 
-/* ---- bot: alpha-beta search; level 0 = random, 1 = shallow, 2 = deep ---- */
-function ab(g,s,me,d,al,be){const r=g.result(s);if(r)return r.w===me?100+d:r.w===undefined?0:-100-d;if(!d)return 0;
+/* ---- bot: alpha-beta search; level 0 = random, higher = deeper ---- */
+function ab(g,s,me,d,al,be){const r=g.result(s);if(r)return r.w===me?1000+d:r.w===undefined?0:-1000-d;if(!d)return g.heur?g.heur(s,me):0;
  const max=s.t===me;let v=max?-1e9:1e9;
  for(const m of g.moves(s)){const x=ab(g,g.move(s,s.t,m),me,d-1,al,be);
   if(max){v=Math.max(v,x);al=Math.max(al,v)}else{v=Math.min(v,x);be=Math.min(be,v)}if(al>=be)break}
@@ -76,77 +115,86 @@ function botPick(g,s,me,lvl){const mv=g.moves(s);if(!lvl)return mv[Math.random()
  return pick[Math.random()*pick.length|0]}
 
 /* ---- app flow ---- */
-let g,s,gid,me=0,mode=null,lvl=1,room,players=1,over=false,res=null,gen=0,inviting=false;
-const show=id=>document.querySelectorAll('section').forEach(e=>e.hidden=e.id!==id);
 const ALL={...G,...ARC},ids=Object.keys(ALL);
-$('#tiles').innerHTML=ids.map(k=>`<button class="tile" data-g="${k}"><span>${ALL[k].icon}</span><b>${ALL[k].name}</b></button>`).join('');
+let g,s,gid,me=0,mode=null,lvl=1,room,players=1,over=false,res=null,gen=0,inviting=false,A={};
+const show=id=>document.querySelectorAll('section').forEach(e=>e.hidden=e.id!==id);
+$('#tiles').innerHTML=ids.map(k=>`<button class="tile" data-g="${k}" style="background:${ALL[k].col}"><span>${ALL[k].icon}</span><b>${ALL[k].name}</b></button>`).join('');
 $('#tiles').onclick=e=>{const b=e.target.closest('[data-g]');b&&pick(b.dataset.g)};
 $('#rand').onclick=()=>pick(ids[Math.random()*ids.length|0]);
-function pick(k){gid=k;const a=!!ARC[k];$('#pname').textContent=ALL[k].name;$('#qs').textContent='';$('#botbox').hidden=a;$('#solobox').hidden=!a;$('#hp').textContent=a?'Score battle: highest score wins':'Play people';show('mode')}
-$('#back1').onclick=()=>{socket.emit('leave');show('lobby')};
-$('#back2').onclick=()=>{gen++;mode=null;socket.emit('leave');show('lobby')};
+function pick(k){gid=k;const a=!!ARC[k];theme(k);$('#pname').textContent=ALL[k].name;$('#qs').textContent='';
+ $('#botbox').hidden=a;$('#solobox').hidden=!a;$('#hp').textContent=a?'Play with others':'Play people';
+ $('#inv').textContent=a?'👥 Play with friends (any number)':'👥 Invite a friend';show('mode')}
+const home=()=>{gen++;mode=null;if(A)A.live=false;socket.emit('leave');theme('lobby');show('lobby')};
+$('#back1').onclick=home;$('#back2').onclick=home;$('#back3').onclick=home;
 $('#bots').onclick=e=>{const b=e.target.closest('[data-l]');if(b){mode='bot';lvl=+b.dataset.l;me=0;start(gid)}};
 $('#quick').onclick=()=>{$('#qs').textContent='Looking for a player…';socket.emit('quick',{game:gid},r=>r.room&&join(r.room,gid))};
 $('#inv').onclick=()=>{inviting=true;join(Math.random().toString(36).slice(2,8),gid)};
+$('#solo').onclick=()=>{mode='solo';arc(gid)};
 socket.on('matched',({room:r,game})=>join(r,game));
-function join(r,k){socket.emit('join',{room:r,game:k},x=>{
+function join(r,k){socket.emit('join',{room:r,game:k,name:ME},x=>{
  if(x.error){alert(x.error);return}
- mode='online';me=x.seat;room=r;players=x.count;ARC[x.game]?arc(x.game,r,x.count):start(x.game);
+ mode='online';me=x.seat;room=r;players=x.count;ARC[x.game]?arc(x.game,r):start(x.game);
  if(inviting){inviting=false;share()}})}
 function link(){return cfg.bot?`https://t.me/${cfg.bot}${cfg.app?'/'+cfg.app:''}?startapp=${gid}-${room}`:`${location.origin}/?g=${gid}&r=${room}`}
 function share(){const u='https://t.me/share/url?url='+encodeURIComponent(link())+'&text='+encodeURIComponent('Play '+ALL[gid].name+' with me!');tg?tg.openTelegramLink(u):window.open(u)}
 $('#share').onclick=share;$('#ashare').onclick=share;
-/* ---- score-attack runner ---- */
-let A={};const inp={h:{},p:{}},cv=$('#cv'),cx=cv.getContext('2d');
-const key=(k,v)=>{inp.h[k]=v;if(v)inp.p[k]=1};
-const KM={ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d',' ':'a'};
-addEventListener('keydown',e=>{const m=KM[e.key];if(m){key(m,1);e.preventDefault()}});
-addEventListener('keyup',e=>{const m=KM[e.key];if(m)key(m,0)});
-$('#pad').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-k]');if(b)key(b.dataset.k,1)});
-addEventListener('pointerup',()=>'ludrA'.split('').forEach(k=>key(k==='A'?'a':k,0)));
-let sx,sy;cv.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});
-cv.addEventListener('pointerup',e=>{const dx=e.clientX-sx,dy=e.clientY-sy;
- if(Math.abs(dx)<15&&Math.abs(dy)<15)inp.p.a=1;else inp.p[Math.abs(dx)>Math.abs(dy)?(dx>0?'r':'l'):(dy>0?'d':'u')]=1});
-function arc(k,r,count){gen++;gid=k;A={k,d:ARC[k],online:!!r,opp:null,round:0,wait:false,live:false};$('#aname').textContent=A.d.name;
- $('#aagain').hidden=true;show('arc');
- if(r&&count<2){A.wait=true;$('#astat').textContent='Waiting for a friend to join…';$('#ashare').hidden=false;cx.clearRect(0,0,320,480)}else beginArc()}
-function beginArc(){const my=++gen;A.opp=null;A.mine=null;A.live=true;$('#aagain').hidden=true;$('#ashare').hidden=true;
- const seed=A.online?[...room].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7)+A.round:Date.now();
- const st=A.st=A.d.init(rng(seed));let last=performance.now();inp.p={};
- (function loop(t){if(my!==gen||!A.live)return;const dt=Math.min(40,t-last);last=t;A.d.step(st,inp,dt);inp.p={};A.d.draw(cx,st);
-  $('#astat').textContent='Score '+st.sc;if(st.dead){endArc();return}requestAnimationFrame(loop)})(last)}
-function endArc(){A.live=false;A.mine=A.st.sc;if(A.online)socket.emit('move',{done:1,score:A.mine});
- let best=A.mine;try{best=Math.max(A.mine,+localStorage.getItem('best_'+A.k)||0);localStorage.setItem('best_'+A.k,best)}catch(e){}A.best=best;arcResult()}
-function arcResult(){if(A.mine==null)return;let t;
- if(!A.online)t=`Game over: ${A.mine}. Your best: ${A.best}`;
- else if(A.opp==null)t=`You scored ${A.mine}. Waiting for your opponent to finish…`;
- else t=`You ${A.mine} vs Opponent ${A.opp}. `+(A.mine>A.opp?'You win! 🎉':A.mine<A.opp?'Opponent wins.':'Tie.');
- $('#astat').textContent=t;$('#aagain').hidden=A.online&&A.opp==null;$('#aagain').textContent=A.online?'Rematch':'Play again'}
-$('#aagain').onclick=()=>{if(A.online){A.round++;socket.emit('move',{reset:1})}beginArc()};
-$('#solo').onclick=()=>{mode='solo';arc(gid)};
-$('#back3').onclick=()=>{gen++;A.live=false;mode=null;socket.emit('leave');show('lobby')};
-function start(k){gen++;gid=k;g=G[k];s=g.init();over=false;res=null;$('#gname').textContent=g.name;
- const B=$('#board');B.className='board '+k;B.style.gridTemplateColumns=`repeat(${g.cols},1fr)`;B.innerHTML='';
- for(let i=0;i<g.cols*g.rows;i++){const c=document.createElement('button');c.className='cell';c.dataset.i=i;B.append(c)}
- show('play');update()}
-$('#board').onclick=e=>{const c=e.target.closest('.cell');if(c)play(g.tap(+c.dataset.i),me,true)};
+
+/* turn-based screen */
+function start(k){gen++;gid=k;g=G[k];s=g.init();over=false;res=null;theme(k);$('#gname').textContent=g.name;
+ const B=$('#board'),n=g.cols*g.rows,ord=[...Array(n).keys()];if(g.flip&&me===1&&mode==='online')ord.reverse();
+ B.className='board '+k;B.style.gridTemplateColumns=`repeat(${g.cols},1fr)`;B.innerHTML='';
+ ord.forEach(i=>{const c=document.createElement('button');c.className='cell';c.dataset.i=i;B.append(c)});show('play');update()}
+$('#board').onclick=e=>{const c=e.target.closest('.cell');if(!c||over)return;const m=g.tap(+c.dataset.i,s,me);if(m!=null)play(m,me,true);else update()};
 function play(m,p,local){if(over||!g)return;if(mode==='online'&&local&&players<2)return;
  const n=g.move(s,p,m);if(!n)return;s=n;if(local&&mode==='online')socket.emit('move',{m,p});
  res=g.result(s);if(res)over=true;update();
- if(!over&&mode==='bot'&&s.t===1){const my=gen;setTimeout(()=>my===gen&&play(botPick(g,s,1,lvl),1,false),550)}}
-function update(){[...$('#board').children].forEach((c,i)=>{const v=s.b[i];c.className='cell'+(v===null?'':' p'+v);c.textContent=g.cell(v)});
- const tag=g.cell(0)?g.cell(me):(me?'blue':'red'),foe=mode==='bot'?'Bot':'Opponent';let t;
+ if(!over&&mode==='bot'&&s.t===1){const my=gen;setTimeout(()=>my===gen&&play(botPick(g,s,1,lvl),1,false),500)}}
+function update(){[...$('#board').children].forEach(c=>{const i=+c.dataset.i,v=s.b[i];c.className='cell'+(g.cls?' '+g.cls(v,i,s):(v===null?'':' p'+v));c.textContent=g.cell(v)});
+ const tag=g.tag?g.tag(me):g.cell(0)?g.cell(me):(me?'yellow':'red'),foe=mode==='bot'?'Bot':'Opponent';let t;
  if(over)t=res.draw?'Draw.':res.w===me?'You win! 🎉':foe+' wins.';
  else if(mode==='online'&&players<2)t='Waiting for a friend to join…';
  else t=s.t===me?'Your turn':foe+(mode==='bot'?' is thinking…':'’s turn');
- $('#status').textContent=`You: ${tag}. ${t}`;
- $('#again').hidden=!over;$('#share').hidden=!(mode==='online'&&players<2)}
-function restart(){start(gid)}
-$('#again').onclick=()=>{restart();if(mode==='online')socket.emit('move',{reset:1})};
-socket.on('move',m=>{if(ARC[gid]){if(m.done){A.opp=m.score;arcResult()}else if(m.reset){A.round++;beginArc()}return}m.reset?restart():play(m.m,m.p,false)});
-socket.on('players',n=>{if(mode!=='online')return;const left=n<players;players=n;if(ARC[gid]){if(A.wait&&n>=2){A.wait=false;beginArc()}return}if(left)restart();else update()});
+ $('#status').textContent=`You: ${tag}. ${t}`;$('#again').hidden=!over;$('#share').hidden=!(mode==='online'&&players<2)}
+$('#again').onclick=()=>{start(gid);if(mode==='online')socket.emit('move',{reset:1})};
+
+/* ---- score-attack screen ---- */
+const cv=$('#cv'),cx=cv.getContext('2d');cv.width=640;cv.height=960;cx.scale(2,2);
+const inp={h:{},p:{}},press=k=>{inp.p[k]=1};
+function fit(){const w=$('#cvw'),W=w.clientWidth,H=w.clientHeight,z=Math.min(W,H/1.5),b=$('#cvb');b.style.width=z+'px';b.style.height=z*1.5+'px'}
+addEventListener('resize',fit);tg&&tg.onEvent&&tg.onEvent('viewportChanged',fit);
+const KM={ArrowLeft:'l',ArrowRight:'r',ArrowUp:'u',ArrowDown:'d',' ':'a'};
+addEventListener('keydown',e=>{const m=KM[e.key];if(m&&!$('#arc').hidden){inp.h[m]=1;inp.p[m]=1;e.preventDefault()}});
+addEventListener('keyup',e=>{const m=KM[e.key];if(m)inp.h[m]=0});
+let TS=null;
+function pt(e){const r=cv.getBoundingClientRect(),t=(e.changedTouches&&e.changedTouches[0])||e;return[(t.clientX-r.left)*320/r.width,(t.clientY-r.top)*480/r.height]}
+function onDown(e){if(!A.live)return;e.preventDefault();const[x,y]=pt(e);TS={sx:x,sy:y,t:performance.now()};A.d.down&&A.d.down(A.st,x,y,press)}
+function onMove(e){if(!TS||!A.live)return;e.preventDefault();const[x,y]=pt(e);A.d.move&&A.d.move(A.st,x,y,press)}
+function onUp(e){if(!TS)return;e.preventDefault();const[x,y]=pt(e),t=TS;TS=null;if(A.live&&A.d.up)A.d.up(A.st,x,y,x-t.sx,y-t.sy,performance.now()-t.t,press)}
+cv.addEventListener('touchstart',onDown,{passive:false});cv.addEventListener('touchmove',onMove,{passive:false});
+cv.addEventListener('touchend',onUp,{passive:false});cv.addEventListener('touchcancel',onUp,{passive:false});
+cv.addEventListener('mousedown',onDown);addEventListener('mousemove',onMove);addEventListener('mouseup',onUp);
+const hash=x=>[...x].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7);
+function arc(k,r){gen++;gid=k;theme(k);A={k,d:ARC[k],online:!!r,att:0,board:[],live:false,best:0};$('#aname').textContent=A.d.name;show('arc');fit();beginArc()}
+function beginArc(){const my=++gen;A.live=true;$('#over').hidden=true;inp.h={};inp.p={};
+ const st=A.st=A.d.init(rng(A.online?hash(room)+A.att*7919:Date.now()));A.att++;st.tt=0;let last=performance.now(),sent=0;
+ (function loop(t){if(my!==gen||!A.live)return;const dt=Math.min(40,t-last);last=t;st.tt+=dt;A.d.step(st,inp,dt);inp.p={};A.d.draw(cx,st);
+  if(A.online&&t-sent>500){sent=t;socket.emit('score',{score:st.sc})}
+  $('#astat').textContent=hud(st);if(st.dead){endArc();return}requestAnimationFrame(loop)})(last)}
+function rank(score){return 1+A.board.filter(p=>p.id!==socket.id&&p.score>score).length}
+function hud(st){return 'Score '+st.sc+(A.online&&A.board.length>1?` · #${rank(st.sc)} of ${A.board.length}`:'')}
+function endArc(){A.live=false;const sc=A.st.sc;if(A.online)socket.emit('score',{score:sc,done:1});
+ let best=sc;try{best=Math.max(sc,+localStorage.getItem('best_'+A.k)||0);localStorage.setItem('best_'+A.k,best)}catch(e){}A.best=best;A.mine=sc;renderOver()}
+function renderOver(){$('#over').hidden=false;$('#osc').textContent=`Your score: ${A.mine}`+(A.online?'':`  ·  Best: ${A.best}`);
+ $('#ot').textContent=A.online?'Round over':'Game over';$('#ashare').hidden=!A.online;
+ $('#olb').innerHTML=A.online?A.board.slice().sort((a,b)=>b.score-a.score).slice(0,8).map((p,i)=>`<div class="lbr${p.id===socket.id?' me':''}"><span>${i+1}. ${esc(p.name)}</span><b>${p.score}</b></div>`).join(''):''}
+$('#aagain').onclick=()=>beginArc();
+socket.on('board',l=>{A.board=l;if(A.k&&A.online&&!$('#over').hidden)renderOver()});
+
+/* ---- shared socket events ---- */
+socket.on('move',m=>{if(ARC[gid])return;if(m.reset)start(gid);else play(m.m,m.p,false)});
+socket.on('players',n=>{if(mode!=='online'||ARC[gid])return;const left=n<players;players=n;if(left)start(gid);else update()});
 
 const q=new URLSearchParams(location.search),sp=tg&&tg.initDataUnsafe&&tg.initDataUnsafe.start_param;
-if(q.get('g')&&q.get('r')&&G[q.get('g')])join(q.get('r'),q.get('g'));
-else if(sp&&sp.includes('-')){const[k,r]=sp.split('-');if(G[k])join(r,k)}
+if(q.get('g')&&q.get('r')&&ALL[q.get('g')])join(q.get('r'),q.get('g'));
+else if(sp&&sp.includes('-')){const[k,r]=sp.split('-');if(ALL[k])join(r,k)}
 </script></body></html>
