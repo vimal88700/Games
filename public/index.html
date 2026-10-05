@@ -158,7 +158,7 @@ G.carrom.render=(s,B,me,send)=>{if(CAR.s!==s)CAR.pending=0;CAR.s=s;CAR.me=me;CAR
 
 /* ---- app state ---- */
 const ALL={...G,...ARC},ids=Object.keys(ALL);
-let g,s,gid,me=0,mode=null,lvl=1,room=null,over=false,res=null,gen=0,inviting=false,A={},names=[],mid=null,who=[],inMatch=false,TL=null,TB=null,TC=null,group=false;
+let g,s,gid,me=0,mode=null,lvl=1,room=null,over=false,res=null,gen=0,inviting=false,A={},names=[],mid=null,who=[],inMatch=false,TL=null,TB=null,TCH=null,group=false;
 const CK={t:0,m:0},mmss=ms=>{ms=Math.max(0,Math.round(ms/1000));return Math.floor(ms/60)+':'+String(ms%60).padStart(2,'0')};
 const show=id=>document.querySelectorAll('section').forEach(e=>e.hidden=e.id!==id);
 $('#tiles').innerHTML=ids.map(k=>`<button class="tile" data-g="${k}" style="background:${ALL[k].col}"><span>${ALL[k].icon}</span><b>${ALL[k].name}</b></button>`).join('');
@@ -178,24 +178,24 @@ socket.on('kicked',()=>{alert('You opened this game somewhere else.');home()});
 function join(r,k){room=r;gid=k;socket.emit('join',{room:r,game:k,name:ME,uid:UID},x=>{
  if(x.error){alert(x.error);return}
  mode='online';group=x.group;gid=x.game;
- if(x.kind==='score')arc(x.game,r,x.group);else{TL=TB=TC=null;inMatch=false;theme(gid);show('tour');renderTour()}
+ if(x.kind==='score')arc(x.game,r,x.group);else{TL=TB=TCH=null;inMatch=false;theme(gid);show('tour');renderTour()}
  if(inviting){inviting=false;share()}})}
 function link(){return cfg.bot?`https://t.me/${cfg.bot}${cfg.app?'/'+cfg.app:''}?startapp=${gid}-${room}`:`${location.origin}/?g=${gid}&r=${room}`}
 function share(){const u='https://t.me/share/url?url='+encodeURIComponent(link())+'&text='+encodeURIComponent('Play '+ALL[gid].name+' with me!');tg?tg.openTelegramLink(u):window.open(u)}
 $('#tshare').onclick=share;$('#ashare').onclick=share;
 
 /* ---- tournament lobby and bracket ---- */
-socket.on('lobby',m=>{if(mode!=='online')return;TL={...m,at:performance.now()};TB=TC=null;inMatch=false;gid=m.game;theme(gid);show('tour');renderTour()});
+socket.on('lobby',m=>{if(mode!=='online')return;TL={...m,at:performance.now()};TB=TCH=null;inMatch=false;gid=m.game;theme(gid);show('tour');renderTour()});
 socket.on('bracket',m=>{if(mode!=='online')return;TB={...m,at:performance.now()};if(!inMatch){show('tour');renderTour()}});
-socket.on('champion',m=>{if(mode!=='online')return;TC=m;if(!inMatch||over){inMatch=false;show('tour');renderTour();sfx(m.name===ME?'win':'move')}});
+socket.on('champion',m=>{if(mode!=='online')return;TCH=m;if(!inMatch||over){inMatch=false;show('tour');renderTour();sfx(m.name===ME?'win':'move')}});
 socket.on('waitAgain',()=>{$('#tinfo').textContent='Waiting for your friend to agree…'});
 function renderTour(){$('#tname').textContent=(ALL[gid]||{}).name||'';let h='';
- if(TC)h+=`<h2>${TC.name?'🏆 Champion: '+esc(TC.name):'🤖 The bots won this one'}</h2>`;
+ if(TCH)h+=`<h2>${TCH.name?'🏆 Champion: '+esc(TCH.name):'🤖 The bots won this one'}</h2>`;
  if(TB&&TB.phase!=='lobby')h+=`<h2>Round ${TB.round}${TB.final?' · Final':''}</h2>`+TB.matches.map(m=>`<div class="lbr"><span>${m.names.map(esc).join(' vs ')}</span><b>${m.over?(m.win?'✓ '+esc(m.win):'—'):'live'}</b></div>`).join('')+`<p class="dim">Still in: ${TB.alive.map(esc).join(', ')||'—'}</p>`;
  else if(TL)h+=`<h2>Players (${TL.names.length})</h2>`+TL.names.map(n=>`<div class="lbr"><span>${esc(n)}</span></div>`).join('');
- $('#tlist').innerHTML=h;$('#tstart').hidden=!(TL&&TL.canStart&&!TB&&!TC);$('#tagain').hidden=!TC;$('#tshare').hidden=!!(TB||TC)||group;tourTimer()}
+ $('#tlist').innerHTML=h;$('#tstart').hidden=!(TL&&TL.canStart&&!TB&&!TCH);$('#tagain').hidden=!TCH;$('#tshare').hidden=!!(TB||TCH)||group;tourTimer()}
 function tourTimer(){if($('#tour').hidden)return;const n=performance.now();let t='';
- if(TC)t='Tournament finished.';
+ if(TCH)t='Tournament finished.';
  else if(TB&&TB.phase!=='lobby')t=TB.next?`Next round in ${Math.max(0,Math.ceil((TB.next-(n-TB.at))/1000))}s`:'Waiting for the other matches…';
  else if(TL)t=group?`${TL.S}-player knockout matches. Anyone who taps Join is added. `+(TL.startIn!=null?`Starting in ${Math.max(0,Math.ceil((TL.startIn-(n-TL.at))/1000))}s.`:'Starts when 2+ players are in.'):(TL.S>2?'The host starts the game; bots fill empty seats.':'Waiting for your friend… tap Invite to send the link.');
  $('#tinfo').textContent=t}
